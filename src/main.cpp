@@ -1,7 +1,10 @@
 #include "ps2probe/probe.hpp"
+#include "ps2probe/deep_scan.hpp"
 
 #include <algorithm>
 #include <iomanip>
+#include <fstream>
+#include <filesystem>
 #include <iostream>
 #include <map>
 #include <limits>
@@ -12,12 +15,20 @@
 namespace {
 
 void print_usage() {
-    std::cout << "PS2 Asset Inspector 0.1.0\n"
-              << "Usage: ps2probe [--verbose] <file> [file ...]\n"
-              << "Read-only inventory, signature scan, entropy and validated IZCA index-table probe.\n";
+    std::cout << "PS2 Asset Inspector 0.6.0\n"
+              << "Usage: ps2probe [--verbose] [--deep] <file> [file ...]\n"
+              << "       ps2probe --vif-csv <PLAYER00.MLD> <output.csv>\n"
+              << "       ps2probe --vif-groups-csv <PLAYER00.MLD> <output.csv>\n"
+              << "       ps2probe --kfmd-header-csv <PLAYER00.MLD> <output.csv>\n"
+              << "Read-only binary inventory and validated PS2 asset-container probes.\n"
+              << "  --verbose  print more offsets and ASCII strings\n"
+              << "  --deep     inspect observed PLAYER00.MLD IZCA, model, material, texture, and VIF links\n"
+              << "  --vif-csv  export bounded candidate VIF chains to CSV (does not export geometry)\n"
+              << "  --vif-groups-csv  export matched attribute-like groups and trailing-word flags to CSV\n"
+              << "  --kfmd-header-csv export raw words from the first 0x50 bytes of each top-level KFMD payload\n";
 }
 
-void print_file_report(const std::filesystem::path& path, bool verbose) {
+void print_file_report(const std::filesystem::path& path, bool verbose, bool deep) {
     const auto read = ps2probe::read_file(path);
     if (!read.ok) {
         std::cerr << "ERROR " << path.string() << ": " << read.error << '\n';
@@ -204,12 +215,20 @@ void print_file_report(const std::filesystem::path& path, bool verbose) {
             std::cout << "  ... string output capped at 100 entries\n";
         }
     }
+    if (deep) {
+        ps2probe::print_deep_mld_report(bytes, std::cout);
+    }
 }
 
 } // namespace
 
 int main(int argc, char** argv) {
     bool verbose = false;
+    bool deep = false;
+    std::optional<std::filesystem::path> vif_csv_input;
+    std::optional<std::filesystem::path> vif_csv_output;
+    bool vif_groups_csv = false;
+    bool kfmd_header_csv = false;
     std::vector<std::filesystem::path> paths;
     for (int i = 1; i < argc; ++i) {
         const std::string arg = argv[i];
@@ -221,14 +240,71 @@ int main(int argc, char** argv) {
             verbose = true;
             continue;
         }
+        if (arg == "--deep") {
+            deep = true;
+            continue;
+        }
+        if (arg == "--vif-csv" || arg == "--vif-groups-csv" || arg == "--kfmd-header-csv") {
+            if (i + 2 >= argc || vif_csv_input || vif_csv_output) {
+                std::cerr << "ERROR VIF CSV export requires exactly one input path and one output path\n";
+                return 2;
+            }
+            vif_groups_csv = (arg == "--vif-groups-csv");
+            kfmd_header_csv = (arg == "--kfmd-header-csv");
+            vif_csv_input = argv[++i];
+            vif_csv_output = argv[++i];
+            continue;
+        }
         paths.emplace_back(arg);
+    }
+    if (vif_csv_input && vif_csv_output) {
+        if (!paths.empty() || deep || verbose) {
+            std::cerr << "ERROR VIF CSV export cannot be combined with inventory flags or other input paths\n";
+            return 2;
+        }
+        std::error_code input_path_error;
+        std::error_code output_path_error;
+        const auto input_absolute = std::filesystem::absolute(*vif_csv_input, input_path_error).lexically_normal();
+        const auto output_absolute = std::filesystem::absolute(*vif_csv_output, output_path_error).lexically_normal();
+        if (!input_path_error && !output_path_error && input_absolute == output_absolute) {
+            std::cerr << "ERROR CSV output must not overwrite the input binary\n";
+            return 2;
+        }
+        std::error_code equivalent_error;
+        if (std::filesystem::exists(*vif_csv_output, equivalent_error) && !equivalent_error &&
+            std::filesystem::equivalent(*vif_csv_input, *vif_csv_output, equivalent_error) && !equivalent_error) {
+            std::cerr << "ERROR CSV output resolves to the input binary; refusing to overwrite it\n";
+            return 2;
+        }
+        const auto read = ps2probe::read_file(*vif_csv_input);
+        if (!read.ok) {
+            std::cerr << "ERROR " << vif_csv_input->string() << ": " << read.error << '\n';
+            return 1;
+        }
+        std::ofstream csv(*vif_csv_output, std::ios::binary);
+        if (!csv) {
+            std::cerr << "ERROR cannot open CSV output: " << vif_csv_output->string() << '\n';
+            return 1;
+        }
+        if (kfmd_header_csv) ps2probe::write_kfmd_header_csv(read.bytes, csv);
+        else if (vif_groups_csv) ps2probe::write_vif_group_csv(read.bytes, csv);
+        else ps2probe::write_vif_chain_csv(read.bytes, csv);
+        csv.close();
+        if (!csv) {
+            std::cerr << "ERROR writing CSV output: " << vif_csv_output->string() << '\n';
+            return 1;
+        }
+        const std::string csv_description = kfmd_header_csv ? "KFMD header CSV: "
+            : (vif_groups_csv ? "VIF group CSV: " : "VIF chain CSV: ");
+        std::cout << "Wrote " << csv_description << vif_csv_output->string() << '\n';
+        return 0;
     }
     if (paths.empty()) {
         print_usage();
         return 2;
     }
     for (const auto& path : paths) {
-        print_file_report(path, verbose);
+        print_file_report(path, verbose, deep);
     }
     return 0;
 }
