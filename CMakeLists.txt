@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(ps2_asset_inspector VERSION 0.6.0 LANGUAGES CXX)
+project(ps2_asset_inspector VERSION 0.12.0 LANGUAGES CXX)
 
 option(PS2PROBE_BUILD_TESTS "Build the self-contained test executable" ON)
 
