@@ -1,27 +1,23 @@
 cmake_minimum_required(VERSION 3.16)
-project(ps2_asset_inspector VERSION 0.12.0 LANGUAGES CXX)
+project(AkuijikiForge VERSION 1.0.0 LANGUAGES CXX)
 
-option(PS2PROBE_BUILD_TESTS "Build the self-contained test executable" ON)
+option(AKUIJIKIFORGE_BUILD_TESTS "Build unit tests" ON)
 
-add_library(ps2probe_core
-    src/probe.cpp
-    src/deep_scan.cpp
-    src/material_links.cpp
-)
-target_include_directories(ps2probe_core PUBLIC include)
-target_compile_features(ps2probe_core PUBLIC cxx_std_17)
+add_library(akuijikiforge_core src/probe.cpp)
+target_include_directories(akuijikiforge_core PUBLIC include)
+target_compile_features(akuijikiforge_core PUBLIC cxx_std_17)
 if(MSVC)
-    target_compile_options(ps2probe_core PRIVATE /W4 /permissive-)
+    target_compile_options(akuijikiforge_core PRIVATE /W4 /permissive-)
 else()
-    target_compile_options(ps2probe_core PRIVATE -Wall -Wextra -Wpedantic -Wconversion -Wshadow)
+    target_compile_options(akuijikiforge_core PRIVATE -Wall -Wextra -Wpedantic -Wconversion -Wshadow)
 endif()
 
-add_executable(ps2probe src/main.cpp)
-target_link_libraries(ps2probe PRIVATE ps2probe_core)
+add_executable(akuijikiforge src/main.cpp)
+target_link_libraries(akuijikiforge PRIVATE akuijikiforge_core)
 
-if(PS2PROBE_BUILD_TESTS)
+if(AKUIJIKIFORGE_BUILD_TESTS)
     enable_testing()
-    add_executable(ps2probe_tests tests/test_probe.cpp)
-    target_link_libraries(ps2probe_tests PRIVATE ps2probe_core)
-    add_test(NAME ps2probe_tests COMMAND ps2probe_tests)
+    add_executable(akuijikiforge_tests tests/test_inspector.cpp)
+    target_link_libraries(akuijikiforge_tests PRIVATE akuijikiforge_core)
+    add_test(NAME inspector-unit-tests COMMAND akuijikiforge_tests)
 endif()
