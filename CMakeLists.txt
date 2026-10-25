@@ -1,6 +1,14 @@
 cmake_minimum_required(VERSION 3.16)
 project(AkuijikiForge VERSION 1.0.0 LANGUAGES CXX)
+# If your headers are inside an "include" folder at the root of the project
+target_include_directories(akuijikiforge_core PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
 
+# OR: If your headers are directly inside "src/akuijikiforge"
+target_include_directories(akuijikiforge_core PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
 option(AKUIJIKIFORGE_BUILD_TESTS "Build unit tests" ON)
 
 add_library(akuijikiforge_core src/probe.cpp)
