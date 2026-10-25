@@ -1,0 +1,28 @@
+name: Build and test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cpp-and-python:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Configure C++ build
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build --parallel 2
+      - name: Run C++ tests
+        run: ctest --test-dir build --output-on-failure
+      - name: Run Python UI-data tests
+        run: python3 -m unittest discover -s tests -p 'test_*.py' -v
+      - name: Audit public-release contents
+        run: python3 tools/audit_public_release.py
