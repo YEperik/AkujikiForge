@@ -1,6 +1,61 @@
+# Build output and compiled binaries
 build/
 cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+Testing/
+*.o
+*.obj.tmp
+*.a
+*.lib
+*.dll
+*.exe
+*.pdb
+*.so
+
+# Python / desktop environment
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+# IDEs and OS files
 .vs/
 .vscode/
+.idea/
 *.user
 *.suo
+.DS_Store
+Thumbs.db
+
+# Private notes, locally supplied game inputs, and generated exports
+private/
+private_research/
+research_notes/
+raw_dumps/
+game_dumps/
+local_assets/
+local_exports/
+model_experiment_output/
+*.MLD
+*.MLT
+*.SFD
+*.BDA
+*.ELF
+*.adpcm
+*.iso
+*.rom
+*.dol
+
+# Local media/model previews are intentionally not tracked by default
+*.wav
+*.mp3
+*.mp4
+*.mkv
+*.mov
+*.avi
+*.obj
+*.ply
+*.bin
